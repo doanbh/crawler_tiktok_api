@@ -16,6 +16,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from flask import Flask, jsonify, request
 
+from douyin_tiktok_scraper.scraper import Scraper
+
+api = Scraper()
+
 app = Flask(__name__)
 
 class TikTok_Crawl:
@@ -83,7 +87,25 @@ def get_tiktok_url():
     # print(request.form)
     return jsonify({ 'status': 200, 'url_download': crawl_vid_TikTok.link_download_video })
     # dataBody = json.loads(request.data)    
+
+@app.route('/get_tiktok_video_data', methods=['GET'])
+async def get_tiktok_video_data():
+    time.sleep(1)
+    video_id = request.args.get('video_id') 
+    video_data = await api.get_tiktok_video_data(video_id)
+    video = video_data['video']
+    title = video_data['author']['nickname']
+    desc = video_data['desc']
+    cover = video['cover']['url_list'][0]
+    download_link = video['play_addr']['url_list'][0]
+    print(f"title: {title}, desc: {desc}, cover: {cover}, download_link: {download_link}")
+    return jsonify({ 
+        'title': title, 
+        'desc': desc, 
+        'cover': cover, 
+        'download_link': download_link, 
+        })
     
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5001)
