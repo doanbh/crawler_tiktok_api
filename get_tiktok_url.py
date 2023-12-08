@@ -15,6 +15,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from flask import Flask, jsonify, request
+from Pintrest import Pintrest
 
 from douyin_tiktok_scraper.scraper import Scraper
 
@@ -105,7 +106,16 @@ async def get_tiktok_video_data():
         'cover': cover, 
         'download_link': download_link, 
         })
-    
+
+@app.route('/get_pinterest_url', methods=['POST'])
+def get_tiktok_url():
+    dataBody = request.form
+    pin_url = dataBody['pin_url'] 
+    pin = Pintrest(pin_url)
+    response = pin.get_media_Link()
+    if response['success'] == True:
+        return jsonify({ 'status': 200, 'url_download': response['link'], 'type': response['type'] }) 
+    return jsonify({ 'status': 400, 'message': 'Not working' })    
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001)
