@@ -108,7 +108,7 @@ async def get_tiktok_video_data():
         })
 
 @app.route('/get_pinterest_url', methods=['POST'])
-def get_tiktok_url():
+def get_pinterest_url():
     dataBody = request.form
     pin_url = dataBody['pin_url'] 
     pin = Pintrest(pin_url)
