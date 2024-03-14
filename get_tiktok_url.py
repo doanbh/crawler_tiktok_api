@@ -14,7 +14,7 @@ import urllib.request
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from Pintrest import Pintrest
 
 from douyin_tiktok_scraper.scraper import Scraper
@@ -26,6 +26,8 @@ from common_function import is_instagram_link
 api = Scraper()
 
 app = Flask(__name__)
+
+listAllowedIP = ['']
 
 class TikTok_Crawl:
     def __init__(self, link_crawl_video: str):
@@ -82,6 +84,11 @@ class TikTok_Crawl:
         if req.status_code == 200:
             self.valid_url = True
 
+@app.route('/tmp/<path:image_name>')
+def get_tmp_image(image_name):
+    # Replace '/tmp' with the actual directory path
+    return send_from_directory('tmp', image_name)
+
 @app.route('/get_tiktok_url', methods=['POST'])
 def get_tiktok_url():
     dataBody = request.form
@@ -123,6 +130,13 @@ def get_pinterest_url():
 
 @app.route('/get_insta_url', methods=['POST'])
 def get_insta_url():
+    # Get client's IP address
+    client_ip = request.remote_addr
+    print("Client IP:", client_ip)
+    # Check if the client's IP address is allowed
+    if client_ip not in listAllowedIP:
+        return jsonify({ 'status': 400, 'message': 'Not allowed' })
+
     dataBody = request.form
     insta_url = dataBody['insta_url'] 
     try:
@@ -187,16 +201,24 @@ def get_insta_url():
 
             # Extract the file name from the path
             file_name = parsed_url.path.split('/')[-1]
-            listLinkPreview.append(folderName + file_name)
+            full_path = folderName + file_name
             # check if file exist in folder
-            if osp.exists(folderName + file_name):
+            if osp.exists(full_path):
                 print("File exist")
                 continue
             response = requests.get(link, headers=headers_random)
-            with open(folderName + file_name, 'wb') as file:
+            mime_type = response.headers.get('Content-Type')
+            print(mime_type)
+            if mime_type == 'video/mp4':
+                full_path = full_path + '.mp4'
+                # file_name = file_name + '.mp4'
+            # print(mime_type)
+            # continue
+            with open(full_path, 'wb') as file:
                 file.write(response.content)
+                listLinkPreview.append(full_path)
         print("--- %s seconds ---" % (time.time() - start_time))
-        return jsonify({ 'status': 200, 'code': code, 'url_download': listLinkDownload, 'url_preview': listLinkPreview, 'type': response['type'] }) 
+        return jsonify({ 'status': 200, 'code': code, 'url_download': listLinkDownload, 'url_preview': listLinkPreview, 'type': '' }) 
         # exit()
         # videoTitle = downloadSoup.p.getText().strip()
         # results[data['id']] = {
@@ -212,4 +234,4 @@ def get_insta_url():
         pass
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001)
+    app.run(host='0.0.0.0', port=5001, debug = False)
