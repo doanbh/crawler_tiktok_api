@@ -19,6 +19,10 @@ from Pintrest import Pintrest
 
 from douyin_tiktok_scraper.scraper import Scraper
 
+import re
+from urllib.parse import urlparse, parse_qs
+from common_function import is_instagram_link
+
 api = Scraper()
 
 app = Flask(__name__)
@@ -116,6 +120,96 @@ def get_pinterest_url():
     if response['success'] == True:
         return jsonify({ 'status': 200, 'url_download': response['link'], 'type': response['type'] }) 
     return jsonify({ 'status': 400, 'message': 'Not working' })    
+
+@app.route('/get_insta_url', methods=['POST'])
+def get_insta_url():
+    dataBody = request.form
+    insta_url = dataBody['insta_url'] 
+    try:
+        start_time = time.time()
+        code_match = re.search(r'/(p|reels)/([^/]+)/', insta_url)
+        # validate link_video is instagram link
+        isValidLink = is_instagram_link(insta_url)
+        print(isValidLink)
+        if not isValidLink:
+            # print("Invalid Instagram link.")
+            return jsonify({ 'status': 400, 'message': 'Invalid URL' }) 
+
+        if code_match:
+            code = code_match.group(2)
+            print("Code:", code)
+        else:
+            print("Code not found in URL.")
+            return jsonify({ 'status': 400, 'message': 'Code not found in URL' }) 
+        time.sleep(1)
+        data = {
+            't': 'media',
+            'lang': 'vi',
+            'q': insta_url
+        }
+        ua = UserAgent()
+        print(ua.chrome)
+        headers_random = {'user-agent': str(ua.chrome)}
+        # print(header)
+        # Request post
+        response = requests.post('https://snapinsta.io/api/ajaxSearch', params=params, cookies=cookies, data=data, timeout=(10, 10))
+        jsonResponse = json.loads(response.text);
+        # print(type(response.text))
+        downloadSoup = BeautifulSoup(jsonResponse["data"], "html.parser")
+        # exit()
+        # print(downloadSoup)
+        listItemsDownload = downloadSoup.find_all('div', class_='download-items')
+        listLinkDownload = []
+        listLinkPreview = []
+        for child in listItemsDownload:
+
+            if child.findChildren(recursive=False):
+                # print(child.img['src'])
+                linkDownload = child.a['href']
+                listLinkDownload.append(linkDownload)
+                # print(linkDownload)
+        # print(listItemsDownload)
+        # downloadLink = downloadSoup.a["href"]
+        # print(downloadLink)
+        # check tmp folder exist if not create
+        if not osp.exists('tmp'):
+            os.makedirs('tmp')
+        # create folder with code name with template: tmp/{code}
+        folderName = 'tmp/' + code + '/'
+        if not osp.exists(folderName):
+            os.makedirs(folderName)
+    
+        # download all media of link in listLinkDownload to tmp folder
+        for link in listLinkDownload:
+            # print(link)
+            # Parse the URL
+            parsed_url = urlparse(link)
+
+            # Extract the file name from the path
+            file_name = parsed_url.path.split('/')[-1]
+            listLinkPreview.append(folderName + file_name)
+            # check if file exist in folder
+            if osp.exists(folderName + file_name):
+                print("File exist")
+                continue
+            response = requests.get(link, headers=headers_random)
+            with open(folderName + file_name, 'wb') as file:
+                file.write(response.content)
+        print("--- %s seconds ---" % (time.time() - start_time))
+        return jsonify({ 'status': 200, 'code': code, 'url_download': listLinkDownload, 'url_preview': listLinkPreview, 'type': response['type'] }) 
+        # exit()
+        # videoTitle = downloadSoup.p.getText().strip()
+        # results[data['id']] = {
+        #     'link_watermark': data['id'],
+        #     'link_without_watermark': downloadLink,
+        #     'videoTitle': videoTitle,
+        #     'time_crawl': time.time()
+        # }
+        # print(results)
+    except Exception as err:
+        print('Error: ', err)
+        return jsonify({ 'status': 400, 'message': 'Not working' })  
+        pass
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001)
