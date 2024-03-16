@@ -28,6 +28,7 @@ api = Scraper()
 app = Flask(__name__)
 
 listAllowedIP = ['']
+SECCRET_KEY = 'tCtEZDbkdfLqA5g11wIh7oUfgZREZhvC'
 
 class TikTok_Crawl:
     def __init__(self, link_crawl_video: str):
@@ -134,7 +135,7 @@ def get_insta_url():
     client_ip = request.remote_addr
     print("Client IP:", client_ip)
     # Check if the client's IP address is allowed
-    if client_ip not in listAllowedIP:
+    if (client_ip in listAllowedIP or request.headers.get('X-SECRET-KEY') == SECCRET_KEY) == False:
         return jsonify({ 'status': 400, 'message': 'Not allowed' })
 
     dataBody = request.form
