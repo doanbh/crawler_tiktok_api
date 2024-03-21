@@ -142,7 +142,7 @@ def get_insta_url():
     insta_url = dataBody['insta_url'] 
     try:
         start_time = time.time()
-        code_match = re.search(r'/(p|reels)/([^/]+)/', insta_url)
+        code_match = re.search(r'/(p|reels|reel)/([^/]+)/', insta_url)
         # validate link_video is instagram link
         isValidLink = is_instagram_link(insta_url)
         print(isValidLink)
@@ -206,6 +206,7 @@ def get_insta_url():
             # check if file exist in folder
             if osp.exists(full_path):
                 print("File exist")
+                listLinkPreview.append(full_path)
                 continue
             response = requests.get(link, headers=headers_random)
             mime_type = response.headers.get('Content-Type')
