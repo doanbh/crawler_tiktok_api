@@ -124,7 +124,7 @@ def get_pinterest_url():
     dataBody = request.form
     pin_url = dataBody['pin_url'] 
     pin = Pintrest(pin_url)
-    response = pin.get_media_LinkV2()
+    response = pin.get_media_LinkV2() 
     if response['success'] == True:
         return jsonify({ 'status': 200, 'url_download': response['link'], 'type': response['type'] }) 
     return jsonify({ 'status': 400, 'message': 'Not working' })    
