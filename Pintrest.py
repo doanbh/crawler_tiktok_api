@@ -18,6 +18,30 @@ class Pintrest:
         if "video-snippet" in self.get_page_content():
             return True
         return False
+    def is_a_video_fast(self):
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        try:
+            response = requests.get(self.url, headers=headers)
+            response.raise_for_status()  # Kiểm tra mã trạng thái HTTP
+
+            soup = BeautifulSoup(response.content, 'html.parser')
+
+            # Kiểm tra thẻ meta chứa og:video
+            video_tag = soup.find('meta', property='og:video')
+            if video_tag:
+                return True
+            
+            # Kiểm tra thẻ meta chứa og:image
+            image_tag = soup.find('meta', property='og:image')
+            if image_tag:
+                return False
+
+            return False
+        except requests.exceptions.RequestException as e:
+            print(f"Error: {e}")
+            return 'error', None
     def get_media_Link(self):
         if self.is_url_valid():
             try:
@@ -73,9 +97,15 @@ class Pintrest:
 
             soup = BeautifulSoup(response.content, 'html.parser')
             media_tag = soup.find('meta', property='og:video') or soup.find('meta', property='og:image')
+            content = response.text
+            video_snippet = re.search(r'video-snippet', content)
+            #  # Kiểm tra thẻ meta chứa og:video
+            # video_tag = soup.find('meta', property='og:video')
+            if video_snippet:
+                return self.get_pinterest_video(pinterest_url)
             
             if media_tag:
-                return media_tag['content']
+                return media_tag['content'] 
             else:
                 return None
         except requests.exceptions.RequestException as e:
@@ -83,16 +113,34 @@ class Pintrest:
             return None
         
     def get_media_LinkV2(self):
+        start_time = time.time()
         if self.is_url_valid():
             try:
-                if self.is_a_video():
+                print("--- %s seconds1 ---" % (time.time() - start_time))
+                if self.is_a_video_fast():
                     media_url = self.get_pinterest_video(self.url)
                     return {"type":"video","link":media_url,"success":True}
                 else:
+                    print("--- %s seconds3 ---" % (time.time() - start_time))
                     media_url = self.get_pinterest_image(self.url)
+                    print("--- %s seconds4 ---" % (time.time() - start_time))
                     return {"type":"image","link":media_url,"success":True}
             except Exception as err:
                 print('Error get_media_LinkV2: ', err)
+                return {"type":"2","link":"","success":False}
+        else:
+            return {"type":"1","link":"","success":False}
+        
+    def get_media_LinkV3(self):
+        start_time = time.time()
+        if self.is_url_valid():
+            try:
+                print("--- %s seconds1 ---" % (time.time() - start_time))
+                media_url = self.get_pinterest_image(self.url)
+                print("--- %s seconds2 ---" % (time.time() - start_time))
+                return {"type":"image","link":media_url,"success":True}
+            except Exception as err:
+                print('Error get_media_LinkV3: ', err)
                 return {"type":"2","link":"","success":False}
         else:
             return {"type":"1","link":"","success":False}
