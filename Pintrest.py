@@ -1,6 +1,8 @@
 import requests
 import re
 import json
+from bs4 import BeautifulSoup
+import time
 
 class Pintrest:
     def __init__(self,url) -> None:
@@ -32,3 +34,66 @@ class Pintrest:
                 return {"type":"2","link":"","success":False}
         else:
             return {"type":"1","link":"","success":False}
+        
+    def get_pinterest_video(page_url):
+        t_body = requests.get(page_url)
+        if(t_body.status_code != 200):
+            print("Entered URL is invalid or not working.")
+        soup = BeautifulSoup(t_body.content,"html.parser")
+        href_link = (soup.find("link",rel="alternate"))['href']
+        match = re.search('url=(.*?)&', href_link)
+        page_url = match.group(1) # update page url 
+
+        print("fetching content from given url")
+        body = requests.get(page_url) # GET response from url
+        if(body.status_code != 200): # checks status code
+            print("Entered URL is invalid or not working.")
+        else:
+            soup = BeautifulSoup(body.content, "html.parser") # parsing the content
+            print("Fetched content Sucessfull.")
+            ''' extracting the url
+            <video
+                autoplay="" class="hwa kVc MIw L4E"
+                src="https://v1.pinimg.com/videos/mc/hls/......m3u8"
+                ....
+            ></video>
+            '''
+            extract_url = (soup.find("video",class_="hwa kVc MIw L4E"))['src'] 
+            # converting m3u8 to V_720P's url
+            convert_url = extract_url.replace("hls","720p").replace("m3u8","mp4")
+            return convert_url
+
+    def get_pinterest_image(pinterest_url):
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        try:
+            response = requests.get(pinterest_url, headers=headers)
+            response.raise_for_status()  # Kiểm tra mã trạng thái HTTP
+
+            soup = BeautifulSoup(response.content, 'html.parser')
+            media_tag = soup.find('meta', property='og:video') or soup.find('meta', property='og:image')
+            
+            if media_tag:
+                return media_tag['content']
+            else:
+                return None
+        except requests.exceptions.RequestException as e:
+            print(f"Error: {e}")
+            return None
+        
+    def get_media_LinkV2(self):
+        if self.is_url_valid():
+            try:
+                if self.is_a_video():
+                    media_url = self.get_pinterest_video(self.url)
+                    return {"type":"video","link":media_url,"success":True}
+                else:
+                    media_url = self.get_pinterest_image(self.url)
+                    return {"type":"image","link":media_url,"success":True}
+            except:
+                return {"type":"2","link":"","success":False}
+        else:
+            return {"type":"1","link":"","success":False}
+        
+    
