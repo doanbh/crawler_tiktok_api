@@ -21,7 +21,7 @@ from douyin_tiktok_scraper.scraper import Scraper
 
 import re
 from urllib.parse import urlparse, parse_qs
-from common_function import is_instagram_link
+from common_function import is_instagram_link, get_first_frame, save_image
 
 api = Scraper()
 
@@ -140,16 +140,18 @@ def get_insta_url():
     if (client_ip in listAllowedIP or request.headers.get('X-SECRET-KEY') == SECCRET_KEY) == False:
         return jsonify({ 'status': 400, 'message': 'Not allowed' })
 
-    dataBody = request.form
-    insta_url = dataBody['insta_url'] 
     try:
+        dataBody = request.form
+        insta_url = dataBody['insta_url'] 
+        is_download = dataBody.get('is_download', True)
+        print(f'is_download: {is_download}, insta_url: {insta_url}')
         start_time = time.time()
         code_match = re.search(r'/(p|reels|reel)/([^/]+)/', insta_url)
         # validate link_video is instagram link
         isValidLink = is_instagram_link(insta_url)
-        print(isValidLink)
+        # print(isValidLink)
         if not isValidLink:
-            # print("Invalid Instagram link.")
+            print("Invalid Instagram link.")
             return jsonify({ 'status': 400, 'message': 'Invalid URL' }) 
 
         if code_match:
@@ -162,15 +164,19 @@ def get_insta_url():
         data = {
             't': 'media',
             'lang': 'vi',
+            # 'v': 'v2',
             'q': insta_url
         }
         ua = UserAgent()
-        print(ua.chrome)
+        # print(ua.chrome)
         headers_random = {'user-agent': str(ua.chrome)}
         # print(header)
         # Request post
-        response = requests.post('https://snapinsta.io/api/ajaxSearch', params=params, cookies=cookies, data=data, timeout=(10, 10))
+        # urlSnapInsta = 'https://snapinsta.io/api/ajaxSearch'
+        urlSnapInsta = 'https://v3.saveig.app/api/ajaxSearch'
+        response = requests.post(urlSnapInsta, params=params, cookies=cookies, data=data, timeout=(10, 10))
         jsonResponse = json.loads(response.text);
+        # print(jsonResponse)
         # print(type(response.text))
         downloadSoup = BeautifulSoup(jsonResponse["data"], "html.parser")
         # exit()
@@ -182,45 +188,23 @@ def get_insta_url():
 
             if child.findChildren(recursive=False):
                 # print(child.img['src'])
+                itemVideo = child.find('i', class_='icon icon-dlvideo')
+                isVideo = itemVideo is not None
                 linkDownload = child.a['href']
                 listLinkDownload.append(linkDownload)
+                thumbImage = child.img['src']
+                listLinkPreview.append(thumbImage)
+                # if isVideo:
+                #     thumbImage = child.img['src']
+                #     listLinkPreview.append(thumbImage)
+                # else:
+                #     listLinkPreview.append(linkDownload)
                 # print(linkDownload)
         # print(listItemsDownload)
+        # print(listLinkPreview)
         # downloadLink = downloadSoup.a["href"]
         # print(downloadLink)
-        # check tmp folder exist if not create
-        if not osp.exists('tmp'):
-            os.makedirs('tmp')
-        # create folder with code name with template: tmp/{code}
-        folderName = 'tmp/' + code + '/'
-        if not osp.exists(folderName):
-            os.makedirs(folderName)
-    
-        # download all media of link in listLinkDownload to tmp folder
-        for link in listLinkDownload:
-            # print(link)
-            # Parse the URL
-            parsed_url = urlparse(link)
-
-            # Extract the file name from the path
-            file_name = parsed_url.path.split('/')[-1]
-            full_path = folderName + file_name
-            # check if file exist in folder
-            if osp.exists(full_path):
-                print("File exist")
-                listLinkPreview.append(full_path)
-                continue
-            response = requests.get(link, headers=headers_random)
-            mime_type = response.headers.get('Content-Type')
-            print(mime_type)
-            if mime_type == 'video/mp4':
-                full_path = full_path + '.mp4'
-                # file_name = file_name + '.mp4'
-            # print(mime_type)
-            # continue
-            with open(full_path, 'wb') as file:
-                file.write(response.content)
-                listLinkPreview.append(full_path)
+        # print(listLinkDownload)
         print("--- %s seconds ---" % (time.time() - start_time))
         return jsonify({ 'status': 200, 'code': code, 'url_download': listLinkDownload, 'url_preview': listLinkPreview, 'type': '' }) 
         # exit()
@@ -234,7 +218,7 @@ def get_insta_url():
         # print(results)
     except Exception as err:
         print('Error: ', err)
-        return jsonify({ 'status': 400, 'message': 'Not working' })  
+        return jsonify({ 'status': 500, 'message': 'Not working' })  
         pass
 
 if __name__ == '__main__':
